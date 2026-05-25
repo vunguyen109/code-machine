@@ -24,7 +24,7 @@ def run_tester(state: AgentState) -> AgentState:
         return state
         
     for relative_path, file_content in state["files"].items():
-        write_file_sandbox(relative_path, file_content)
+        write_file_sandbox(relative_path, file_content, root_dir=state.get("code_folder"))
         
     # 2. Determine how to run tests
     # Scan for files containing test logic

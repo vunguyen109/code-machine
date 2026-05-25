@@ -427,6 +427,27 @@ body {
   word-break: break-all;
 }
 
+.filter-pill {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.filter-pill:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.filter-pill.active {
+  background: rgba(99, 102, 241, 0.16);
+  color: #dbeafe;
+  border-color: rgba(99, 102, 241, 0.35);
+}
+
 .console-line.system {
   color: var(--text-secondary);
 }

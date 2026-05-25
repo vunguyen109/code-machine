@@ -38,3 +38,6 @@ class AgentState(TypedDict):
     model_coder: str
     model_reviewer: str
     model_tester: str
+
+    # Optional sandbox subfolder for file generation and edit
+    code_folder: str

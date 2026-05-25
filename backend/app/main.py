@@ -7,7 +7,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 # Import LangGraph and state definition
 from app.graph import graph
 from app.state import AgentState
-from app.tools.file_system import list_dir_sandbox
+from app.tools.file_system import list_dir_sandbox, read_file_sandbox, write_file_sandbox
 
 app = FastAPI(title="LangChain Multi-Agent CodeMachine Gateway")
 
@@ -55,6 +55,50 @@ async def test_connection(request: TestConnectionRequest):
             error_msg = f"Model '{request.model}' không được hỗ trợ hoặc sai chính tả."
         return {"status": "error", "message": f"Kiểm thử kết nối thất bại: {error_msg}"}
 
+class SaveFileRequest(BaseModel):
+    relative_path: str
+    content: str
+    code_folder: str | None = None
+
+@app.post("/api/save-file")
+async def save_file(request: SaveFileRequest):
+    """Save a file inside the chosen folder."""
+    if not request.relative_path:
+        return {"status": "error", "message": "Đường dẫn file không được để trống."}
+
+    result = write_file_sandbox(request.relative_path, request.content, root_dir=request.code_folder)
+    if result.startswith("Error"):
+        return {"status": "error", "message": result}
+
+    return {"status": "success", "message": result}
+
+class ListFilesRequest(BaseModel):
+    code_folder: str | None = None
+
+@app.post("/api/list-files")
+async def list_files(request: ListFilesRequest):
+    """List files inside the chosen folder."""
+    try:
+        files = list_dir_sandbox(request.code_folder)
+        return {"status": "success", "files": list(files.keys())}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+class ReadFileRequest(BaseModel):
+    relative_path: str
+    code_folder: str | None = None
+
+@app.post("/api/read-file")
+async def read_file(request: ReadFileRequest):
+    """Read a file from the chosen folder."""
+    if not request.relative_path:
+        return {"status": "error", "message": "Đường dẫn file không được để trống."}
+
+    content = read_file_sandbox(request.relative_path, root_dir=request.code_folder)
+    if content.startswith("Error"):
+        return {"status": "error", "message": content}
+    return {"status": "success", "content": content}
+
 @app.websocket("/api/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
@@ -68,6 +112,8 @@ async def websocket_endpoint(websocket: WebSocket):
             
             prompt = request.get("prompt", "")
             api_key = request.get("api_key", "").strip()
+            # Selected sandbox subfolder for code generation and file editing
+            code_folder = request.get("code_folder", "")
             # Group shortcuts (fallback if per-agent models not provided)
             model_complex = request.get("model_complex", "aws/claude-sonnet-4-6")
             model_fast = request.get("model_fast", "aws/claude-haiku-4-5")
@@ -110,7 +156,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 "model_architect": model_architect,
                 "model_coder": model_coder,
                 "model_reviewer": model_reviewer,
-                "model_tester": model_tester
+                "model_tester": model_tester,
+                "code_folder": code_folder or ""
             }
             
             # Send initial state acknowledgment
@@ -140,10 +187,11 @@ async def websocket_endpoint(websocket: WebSocket):
                     
                     print(f"[WebSocket] Node finished: {node_name}")
                     
-                    # Package and stream updated state to client
+                    # Package and stream updated state to client with agent-level logging
                     await websocket.send_text(json.dumps({
-                        "type": "node_complete",
+                        "type": "agent_log",
                         "node": node_name,
+                        "level": "info",
                         "message": latest_msg,
                         "state": {
                             "plan": node_state.get("plan", ""),
@@ -161,7 +209,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 print("[WebSocket] Workflow completed successfully.")
                 
                 # Fetch final sandbox files written on physical disk just in case
-                final_disk_files = list_dir_sandbox()
+                final_disk_files = list_dir_sandbox(code_folder or None)
                 
                 await websocket.send_text(json.dumps({
                     "type": "workflow_complete",

@@ -22,7 +22,11 @@ export default function App() {
   // Accumulated Data
   const [plan, setPlan] = useState('');
   const [files, setFiles] = useState({});
+  const [folderFiles, setFolderFiles] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [codeFolder, setCodeFolder] = useState(localStorage.getItem('code_folder') || '');
+  const [editContent, setEditContent] = useState('');
+  const [saveStatus, setSaveStatus] = useState('');
   const [errors, setErrors] = useState([]);
   const [testResults, setTestResults] = useState('');
   const [logs, setLogs] = useState([
@@ -31,6 +35,10 @@ export default function App() {
 
   const wsRef = useRef(null);
   const consoleEndRef = useRef(null);
+
+  const [logFilter, setLogFilter] = useState('all');
+  const [isFolderLoading, setIsFolderLoading] = useState(false);
+  const [folderError, setFolderError] = useState('');
 
   // Auto-scroll console terminal to bottom on new logs
   useEffect(() => {
@@ -45,9 +53,108 @@ export default function App() {
   useEffect(() => { localStorage.setItem('model_coder', modelCoder); }, [modelCoder]);
   useEffect(() => { localStorage.setItem('model_reviewer', modelReviewer); }, [modelReviewer]);
   useEffect(() => { localStorage.setItem('model_tester', modelTester); }, [modelTester]);
+  useEffect(() => { localStorage.setItem('code_folder', codeFolder); }, [codeFolder]);
+
+  useEffect(() => {
+    if (selectedFile && files[selectedFile]) {
+      setEditContent(files[selectedFile]);
+      setSaveStatus('');
+    } else {
+      setEditContent('');
+    }
+  }, [selectedFile, files]);
+
+  useEffect(() => {
+    setFolderFiles([]);
+    setSelectedFile(null);
+    setEditContent('');
+    setFolderError('');
+  }, [codeFolder]);
 
   const addLog = (type, content) => {
     setLogs((prev) => [...prev, { type, content }]);
+  };
+
+  const handleSaveFile = async () => {
+    if (!selectedFile) {
+      setSaveStatus('Chưa chọn file để lưu.');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/save-file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          relative_path: selectedFile,
+          content: editContent,
+          code_folder: codeFolder || undefined,
+        }),
+      });
+      const data = await response.json();
+      if (data.status === 'success') {
+        setFiles((prev) => ({ ...prev, [selectedFile]: editContent }));
+        setSaveStatus('Lưu file thành công.');
+        addLog('system', `✅ File '${selectedFile}' đã được lưu vào ${codeFolder || 'sandbox root'}.`);
+        await refreshFolderFiles();
+      } else {
+        setSaveStatus(`Lỗi lưu file: ${data.message}`);
+        addLog('error', `🛑 Lỗi lưu file: ${data.message}`);
+      }
+    } catch (error) {
+      setSaveStatus(`Lỗi lưu file: ${error.message}`);
+      addLog('error', `🛑 Lỗi lưu file: ${error.message}`);
+    }
+  };
+
+  const refreshFolderFiles = async () => {
+    setIsFolderLoading(true);
+    setFolderError('');
+
+    try {
+      const response = await fetch('/api/list-files', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code_folder: codeFolder || undefined }),
+      });
+      const data = await response.json();
+      if (data.status === 'success') {
+        setFolderFiles(data.files || []);
+        if (data.files && data.files.length > 0) {
+          setSelectedFile(data.files[0]);
+        }
+      } else {
+        setFolderError(data.message || 'Không thể tải thư mục.');
+        addLog('error', `🛑 ${data.message}`);
+      }
+    } catch (error) {
+      setFolderError(error.message);
+      addLog('error', `🛑 Lỗi tải thư mục: ${error.message}`);
+    } finally {
+      setIsFolderLoading(false);
+    }
+  };
+
+  const loadFileFromFolder = async (relativePath) => {
+    setSelectedFile(relativePath);
+    try {
+      const response = await fetch('/api/read-file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ relative_path: relativePath, code_folder: codeFolder || undefined }),
+      });
+      const data = await response.json();
+      if (data.status === 'success') {
+        setEditContent(data.content);
+        setSaveStatus('');
+      } else {
+        setEditContent('');
+        setSaveStatus(`Lỗi đọc file: ${data.message}`);
+      }
+    } catch (error) {
+      setEditContent('');
+      setSaveStatus(`Lỗi đọc file: ${error.message}`);
+    }
   };
 
   const handleStartWorkflow = () => {
@@ -66,6 +173,8 @@ export default function App() {
     setPlan('');
     setFiles({});
     setSelectedFile(null);
+    setEditContent('');
+    setSaveStatus('');
     setErrors([]);
     setTestResults('');
     setLogs([
@@ -85,6 +194,7 @@ export default function App() {
       socket.send(JSON.stringify({
         prompt: prompt,
         api_key: apiKey,
+        code_folder: codeFolder,
         model_architect: modelArchitect,
         model_coder: modelCoder,
         model_reviewer: modelReviewer,
@@ -95,7 +205,7 @@ export default function App() {
       }));
     };
 
-    socket.onmessage = (event) => {
+    socket.onmessage = async (event) => {
       try {
         const data = JSON.parse(event.data);
         
@@ -103,18 +213,17 @@ export default function App() {
           addLog('system', data.status);
         }
         
-        else if (data.type === 'node_complete') {
+        else if (data.type === 'agent_log' || data.type === 'node_complete') {
           const completedNode = data.node;
           const message = data.message;
           const nextState = data.state;
+          const logType = ['architect', 'coder', 'reviewer', 'tester'].includes(completedNode) ? completedNode : 'system';
           
-          addLog(completedNode, `[Node: ${completedNode.toUpperCase()}] hoàn thành.\n\n${message}`);
+          addLog(logType, `[${completedNode.toUpperCase()}] ${message}`);
           
-          // Update in-memory workflow variables
           if (nextState.plan) setPlan(nextState.plan);
           if (nextState.files) {
             setFiles(nextState.files);
-            // Select first file if nothing selected yet
             const fileKeys = Object.keys(nextState.files);
             if (fileKeys.length > 0 && !selectedFile) {
               setSelectedFile(fileKeys[0]);
@@ -124,7 +233,6 @@ export default function App() {
           if (nextState.errors) setErrors(nextState.errors);
           if (nextState.test_results) setTestResults(nextState.test_results);
           
-          // Router logic representation to show who is currently working next
           if (completedNode === 'architect') {
             setActiveNode('coder');
           } else if (completedNode === 'coder') {
@@ -149,6 +257,7 @@ export default function App() {
         else if (data.type === 'workflow_complete') {
           addLog('system', `🎉 THÀNH CÔNG: ${data.status}`);
           if (data.files) setFiles(data.files);
+          await refreshFolderFiles();
           setIsRunning(false);
           setActiveNode('idle');
           setWsStatus('connected');
@@ -189,6 +298,13 @@ export default function App() {
     setActiveNode('idle');
     addLog('system', '🛑 Hủy bỏ tiến trình theo yêu cầu của người dùng.');
   };
+
+  const filteredLogs = logs.filter((log) => {
+    if (logFilter === 'all') return true;
+    return log.type === logFilter;
+  });
+
+  const displayedFiles = folderFiles.length > 0 ? folderFiles : Object.keys(files);
 
   return (
     <div className="app-container">
@@ -321,6 +437,21 @@ export default function App() {
             </div>
           </div>
 
+          <div className="form-group">
+            <label className="form-label">📁 Thư mục code gốc</label>
+            <input
+              className="api-input"
+              type="text"
+              placeholder="Ví dụ: src hoặc backend/app"
+              value={codeFolder}
+              onChange={(e) => setCodeFolder(e.target.value)}
+              disabled={isRunning}
+            />
+            <small style={{ color: 'var(--text-secondary)', marginTop: '6px', display: 'block' }}>
+              Để trống để tạo file ở sandbox root.
+            </small>
+          </div>
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {!isRunning ? (
               <button className="btn-run" onClick={handleStartWorkflow}>
@@ -423,8 +554,20 @@ export default function App() {
                   Clear logs
                 </button>
               </div>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', padding: '12px 16px', borderBottom: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.03)' }}>
+                {['all', 'architect', 'coder', 'reviewer', 'tester', 'system', 'error'].map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setLogFilter(type)}
+                    className={`filter-pill ${logFilter === type ? 'active' : ''}`}
+                    style={{ fontSize: '11px' }}
+                  >
+                    {type === 'all' ? 'Tất cả' : type.charAt(0).toUpperCase() + type.slice(1)}
+                  </button>
+                ))}
+              </div>
               <div className="console-terminal">
-                {logs.map((log, idx) => (
+                {filteredLogs.map((log, idx) => (
                   <div key={idx} className={`console-line ${log.type}`}>
                     {log.content}
                   </div>
@@ -435,29 +578,46 @@ export default function App() {
 
             {/* Code Workspace Explorer & Viewer */}
             <div className="glass" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              <div style={{ display: 'flex', padding: '12px 16px', borderBottom: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.02)' }}>
-                <span style={{ fontSize: '13px', fontWeight: 'bold' }}>Sandbox Workspace</span>
+                <div style={{ display: 'flex', padding: '12px 16px', borderBottom: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.02)' }}>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 'bold' }}>Workspace Explorer</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Gốc: {codeFolder || 'sandbox'}</div>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <button
+                    className="btn-run"
+                    style={{ padding: '8px 14px', fontSize: '12px' }}
+                    onClick={refreshFolderFiles}
+                  >
+                    Refresh folder
+                  </button>
+                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{isFolderLoading ? 'Đang tải...' : `${displayedFiles.length} file`}</span>
+                </div>
               </div>
-              
-              {Object.keys(files).length === 0 ? (
+
+              {folderError ? (
+                <div className="empty-state" style={{ padding: '20px' }}>
+                  <span>{folderError}</span>
+                </div>
+              ) : displayedFiles.length === 0 ? (
                 <div className="empty-state">
                   <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 22V4c0-.5.2-1 .6-1.4C5 2.2 5.5 2 6 2h8.5L20 7.5V22H4z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="M9 15h6"/></svg>
-                  <span>Chưa có file nào được tạo.</span>
+                  <span>Chưa có file nào trong thư mục này.</span>
                 </div>
               ) : (
                 <div className="files-panel">
                   {/* File Tree */}
                   <div className="file-explorer">
                     <span className="explorer-header">Danh sách File</span>
-                    {Object.keys(files).map((filepath) => (
+                    {displayedFiles.map((filepath) => (
                       <div
                         key={filepath}
                         className={`file-item ${selectedFile === filepath ? 'selected' : ''}`}
-                        onClick={() => setSelectedFile(filepath)}
+                        onClick={() => loadFileFromFolder(filepath)}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-file-code-2"><path d="M4 22V4c0-.5.2-1 .6-1.4C5 2.2 5.5 2 6 2h8.5L20 7.5V22H4z"/><polyline points="14 2 14 8 20 8"/><path d="m8 16 1.5-1.5L8 13"/><path d="m16 16-1.5-1.5 1.5-1.5"/><path d="m10 18 4-8"/></svg>
                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {filepath.split('/').pop()}
+                          {filepath.split(/[/\\\\]/).pop()}
                         </span>
                       </div>
                     ))}
@@ -465,10 +625,33 @@ export default function App() {
 
                   {/* Code View */}
                   <div className="file-content-area">
-                    {selectedFile && files[selectedFile] ? (
-                      <pre className="code-pre">
-                        <code>{files[selectedFile]}</code>
-                      </pre>
+                    {selectedFile ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                          <div>
+                            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{selectedFile}</div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Lưu ở: {codeFolder || 'sandbox'}</div>
+                          </div>
+                          <button
+                            className="btn-run"
+                            style={{ padding: '8px 14px', fontSize: '12px', width: 'auto' }}
+                            onClick={handleSaveFile}
+                          >
+                            Lưu file
+                          </button>
+                        </div>
+                        <textarea
+                          className="textarea-input"
+                          style={{ height: '100%', minHeight: '360px', fontFamily: 'Fira Code, monospace' }}
+                          value={editContent}
+                          onChange={(e) => setEditContent(e.target.value)}
+                        />
+                        {saveStatus && (
+                          <div style={{ marginTop: '12px', color: saveStatus.startsWith('Lỗi') ? '#fca5a5' : '#a7f3d0', fontSize: '12px' }}>
+                            {saveStatus}
+                          </div>
+                        )}
+                      </div>
                     ) : (
                       <div className="empty-state">Chọn một file để xem nội dung code</div>
                     )}
