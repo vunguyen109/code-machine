@@ -54,7 +54,9 @@ def run_tester(state: AgentState) -> AgentState:
     test_output = execute_command(test_cmd)
     
     # 4. Use LLM to analyze the execution output
-    llm = get_llm(MODEL_TESTER, state.get("api_key"))
+    # Resolve dynamic model: per-agent override → group fallback → config default
+    model_name = state.get("model_tester") or state.get("model_fast") or MODEL_TESTER
+    llm = get_llm(model_name, state.get("api_key"))
     
     system_prompt = (
         "You are a Quality Assurance Engineer.\n"

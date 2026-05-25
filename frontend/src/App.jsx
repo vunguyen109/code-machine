@@ -7,6 +7,12 @@ export default function App() {
   );
   const [apiKey, setApiKey] = useState(localStorage.getItem('VERTEX_KEY_API_KEY') || '');
 
+  // Per-agent model configurations
+  const [modelArchitect, setModelArchitect] = useState(localStorage.getItem('model_architect') || 'aws/claude-sonnet-4-6');
+  const [modelCoder, setModelCoder] = useState(localStorage.getItem('model_coder') || 'aws/claude-sonnet-4-6');
+  const [modelReviewer, setModelReviewer] = useState(localStorage.getItem('model_reviewer') || 'aws/claude-haiku-4-5');
+  const [modelTester, setModelTester] = useState(localStorage.getItem('model_tester') || 'aws/qwen3-codex');
+
   // Workflow State
   const [isRunning, setIsRunning] = useState(false);
   const [wsStatus, setWsStatus] = useState('disconnected'); // connected | disconnected | running
@@ -33,10 +39,12 @@ export default function App() {
     }
   }, [logs]);
 
-  // Save API key to localStorage when updated
-  useEffect(() => {
-    localStorage.setItem('VERTEX_KEY_API_KEY', apiKey);
-  }, [apiKey]);
+  // Save API key & model selections to localStorage
+  useEffect(() => { localStorage.setItem('VERTEX_KEY_API_KEY', apiKey); }, [apiKey]);
+  useEffect(() => { localStorage.setItem('model_architect', modelArchitect); }, [modelArchitect]);
+  useEffect(() => { localStorage.setItem('model_coder', modelCoder); }, [modelCoder]);
+  useEffect(() => { localStorage.setItem('model_reviewer', modelReviewer); }, [modelReviewer]);
+  useEffect(() => { localStorage.setItem('model_tester', modelTester); }, [modelTester]);
 
   const addLog = (type, content) => {
     setLogs((prev) => [...prev, { type, content }]);
@@ -73,10 +81,17 @@ export default function App() {
       setWsStatus('connected');
       addLog('system', '✅ Kết nối WebSocket thành công. Đang gửi dữ liệu yêu cầu...');
       
-      // Send task parameter to backend
+      // Send task parameters with per-agent model selections
       socket.send(JSON.stringify({
         prompt: prompt,
-        api_key: apiKey
+        api_key: apiKey,
+        model_architect: modelArchitect,
+        model_coder: modelCoder,
+        model_reviewer: modelReviewer,
+        model_tester: modelTester,
+        // legacy fallback group keys
+        model_complex: modelArchitect,
+        model_fast: modelReviewer
       }));
     };
 
@@ -223,6 +238,87 @@ export default function App() {
               onChange={(e) => setPrompt(e.target.value)}
               disabled={isRunning}
             />
+          </div>
+
+          {/* Per-Agent Model Selection */}
+          <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <label className="form-label" style={{ marginBottom: '2px' }}>🤖 Model cho từng Agent:</label>
+
+            {/* Architect */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--accent-violet)', minWidth: '70px', fontWeight: 600 }}>Architect</span>
+              <select
+                id="select-model-architect"
+                className="api-input"
+                style={{ flex: 1, height: '34px', padding: '0 8px', background: 'rgba(0,0,0,0.3)', fontSize: '12px' }}
+                value={modelArchitect}
+                onChange={(e) => setModelArchitect(e.target.value)}
+                disabled={isRunning}
+              >
+                <option value="aws/claude-sonnet-4-6">Claude Sonnet 4.6</option>
+                <option value="aws/claude-haiku-4-5">Claude Haiku 4.5</option>
+                <option value="aws/qwen3-codex">Qwen3 Codex</option>
+                <option value="aws/minimax-m2.5">MiniMax M2.5</option>
+                <option value="aws/glm-5">GLM-5</option>
+              </select>
+            </div>
+
+            {/* Coder */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--accent-cyan)', minWidth: '70px', fontWeight: 600 }}>Coder</span>
+              <select
+                id="select-model-coder"
+                className="api-input"
+                style={{ flex: 1, height: '34px', padding: '0 8px', background: 'rgba(0,0,0,0.3)', fontSize: '12px' }}
+                value={modelCoder}
+                onChange={(e) => setModelCoder(e.target.value)}
+                disabled={isRunning}
+              >
+                <option value="aws/claude-sonnet-4-6">Claude Sonnet 4.6</option>
+                <option value="aws/claude-haiku-4-5">Claude Haiku 4.5</option>
+                <option value="aws/qwen3-codex">Qwen3 Codex</option>
+                <option value="aws/minimax-m2.5">MiniMax M2.5</option>
+                <option value="aws/glm-5">GLM-5</option>
+              </select>
+            </div>
+
+            {/* Reviewer */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--accent-amber)', minWidth: '70px', fontWeight: 600 }}>Reviewer</span>
+              <select
+                id="select-model-reviewer"
+                className="api-input"
+                style={{ flex: 1, height: '34px', padding: '0 8px', background: 'rgba(0,0,0,0.3)', fontSize: '12px' }}
+                value={modelReviewer}
+                onChange={(e) => setModelReviewer(e.target.value)}
+                disabled={isRunning}
+              >
+                <option value="aws/claude-haiku-4-5">Claude Haiku 4.5</option>
+                <option value="aws/claude-sonnet-4-6">Claude Sonnet 4.6</option>
+                <option value="aws/qwen3-codex">Qwen3 Codex</option>
+                <option value="aws/minimax-m2.5">MiniMax M2.5</option>
+                <option value="aws/glm-5">GLM-5</option>
+              </select>
+            </div>
+
+            {/* Tester */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--accent-emerald)', minWidth: '70px', fontWeight: 600 }}>Tester</span>
+              <select
+                id="select-model-tester"
+                className="api-input"
+                style={{ flex: 1, height: '34px', padding: '0 8px', background: 'rgba(0,0,0,0.3)', fontSize: '12px' }}
+                value={modelTester}
+                onChange={(e) => setModelTester(e.target.value)}
+                disabled={isRunning}
+              >
+                <option value="aws/qwen3-codex">Qwen3 Codex</option>
+                <option value="aws/claude-haiku-4-5">Claude Haiku 4.5</option>
+                <option value="aws/claude-sonnet-4-6">Claude Sonnet 4.6</option>
+                <option value="aws/minimax-m2.5">MiniMax M2.5</option>
+                <option value="aws/glm-5">GLM-5</option>
+              </select>
+            </div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>

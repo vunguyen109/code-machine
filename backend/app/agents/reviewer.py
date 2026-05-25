@@ -11,7 +11,9 @@ def run_reviewer(state: AgentState) -> AgentState:
     """
     print("[Agent] Reviewer is running...")
     
-    llm = get_llm(MODEL_REVIEWER, state.get("api_key"))
+    # Resolve dynamic model: per-agent override → group fallback → config default
+    model_name = state.get("model_reviewer") or state.get("model_fast") or MODEL_REVIEWER
+    llm = get_llm(model_name, state.get("api_key"))
     
     # Format current codebase files
     files_str = ""

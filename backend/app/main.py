@@ -20,9 +20,40 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from pydantic import BaseModel
+from app.agents.base import get_llm
+
+class TestConnectionRequest(BaseModel):
+    api_key: str
+    model: str
+
 @app.get("/api/health")
 def health():
     return {"status": "ok", "message": "CodeMachine backend gateway is running"}
+
+@app.post("/api/test-connection")
+async def test_connection(request: TestConnectionRequest):
+    """
+    Ping the Vertex Key API with a lightweight mock request
+    to verify that the provided API key and model are active and valid.
+    """
+    try:
+        # Resolve LLM using our helper
+        llm = get_llm(request.model, request.api_key)
+        
+        # Execute lightweight ping in a thread pool to avoid blocking the async event loop
+        await asyncio.to_thread(
+            llm.invoke,
+            [{"role": "user", "content": "Say 'ping' only"}],
+        )
+        return {"status": "success", "message": "Kết nối đến Vertex Key API thành công!"}
+    except Exception as e:
+        error_msg = str(e)
+        if "AuthenticationError" in error_msg or "401" in error_msg:
+            error_msg = "API Key không hợp lệ hoặc hết hạn."
+        elif "404" in error_msg:
+            error_msg = f"Model '{request.model}' không được hỗ trợ hoặc sai chính tả."
+        return {"status": "error", "message": f"Kiểm thử kết nối thất bại: {error_msg}"}
 
 @app.websocket("/api/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -36,16 +67,32 @@ async def websocket_endpoint(websocket: WebSocket):
             request = json.loads(data)
             
             prompt = request.get("prompt", "")
-            api_key = request.get("api_key", "")
+            api_key = request.get("api_key", "").strip()
+            # Group shortcuts (fallback if per-agent models not provided)
+            model_complex = request.get("model_complex", "aws/claude-sonnet-4-6")
+            model_fast = request.get("model_fast", "aws/claude-haiku-4-5")
+            # Per-agent model overrides (highest priority)
+            model_architect = request.get("model_architect", "")
+            model_coder = request.get("model_coder", "")
+            model_reviewer = request.get("model_reviewer", "")
+            model_tester = request.get("model_tester", "")
             
             if not prompt:
                 await websocket.send_text(json.dumps({
                     "type": "error",
-                    "content": "Empty prompt provided."
+                    "content": "Nội dung yêu cầu trống. Vui lòng mô tả yêu cầu ứng dụng của bạn."
                 }))
                 continue
                 
-            print(f"[WebSocket] Triggering workflow for prompt: '{prompt[:40]}...'")
+            # Pre-validate API Key to prevent silent crashes during agent graph runs
+            if not api_key or not api_key.startswith("vai-"):
+                await websocket.send_text(json.dumps({
+                    "type": "error",
+                    "content": "API Key không hợp lệ. Vui lòng nhập Vertex API Key bắt đầu bằng 'vai-' trong ô cấu hình phía trên bên phải trước khi nhấn Bắt đầu!"
+                }))
+                continue
+                
+            print(f"[WebSocket] Triggering workflow | architect={model_architect or model_complex} | coder={model_coder or model_complex} | reviewer={model_reviewer or model_fast} | tester={model_tester or model_fast} | prompt='{prompt[:40]}...'")
             
             # 1. Initialize LangGraph State
             initial_state: AgentState = {
@@ -57,7 +104,13 @@ async def websocket_endpoint(websocket: WebSocket):
                 "sender": "User",
                 "iterations": 0,
                 "current_task": prompt,
-                "api_key": api_key
+                "api_key": api_key,
+                "model_complex": model_complex,
+                "model_fast": model_fast,
+                "model_architect": model_architect,
+                "model_coder": model_coder,
+                "model_reviewer": model_reviewer,
+                "model_tester": model_tester
             }
             
             # Send initial state acknowledgment

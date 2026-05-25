@@ -36,7 +36,9 @@ def run_coder(state: AgentState) -> AgentState:
     """
     print("[Agent] Coder is running...")
     
-    llm = get_llm(MODEL_CODER, state.get("api_key"))
+    # Resolve dynamic model: per-agent override → group fallback → config default
+    model_name = state.get("model_coder") or state.get("model_complex") or MODEL_CODER
+    llm = get_llm(model_name, state.get("api_key"))
     
     # Formulate context for the LLM
     plan = state.get("plan", "No plan drafted yet.")

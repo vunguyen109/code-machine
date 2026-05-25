@@ -10,8 +10,9 @@ def run_architect(state: AgentState) -> AgentState:
     """
     print("[Agent] Architect is running...")
     
-    # Resolve LLM
-    llm = get_llm(MODEL_ARCHITECT, state.get("api_key"))
+    # Resolve dynamic model: per-agent override → group fallback → config default
+    model_name = state.get("model_architect") or state.get("model_complex") or MODEL_ARCHITECT
+    llm = get_llm(model_name, state.get("api_key"))
     
     # Retrieve user request (usually the first message)
     user_prompt = ""

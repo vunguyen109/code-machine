@@ -28,3 +28,13 @@ class AgentState(TypedDict):
     
     # The dynamic API key passed from the client frontend
     api_key: str
+    
+    # Group model shortcuts (legacy/fallback)
+    model_complex: str
+    model_fast: str
+
+    # Per-agent model overrides (highest priority if set)
+    model_architect: str
+    model_coder: str
+    model_reviewer: str
+    model_tester: str
