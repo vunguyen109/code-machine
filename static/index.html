@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LangGraph SDLC Agentic Dashboard</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Main Style Sheet -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar: Configuration Panel -->
+        <aside class="sidebar glassmorphic">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fa-solid fa-network-wired logo-icon"></i>
+                    <span>LangGraph <small>SDLC</small></span>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3><i class="fa-solid fa-key icon-accent"></i> Cấu hình Vertex API</h3>
+                <div class="form-group">
+                    <label for="vertexKey">Vertex API Key</label>
+                    <div class="input-with-icon">
+                        <i class="fa-solid fa-lock icon-input"></i>
+                        <input type="password" id="vertexKey" placeholder="Nhập API Key..." autocomplete="off">
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3><i class="fa-solid fa-folder-open icon-accent"></i> Thư mục Resource</h3>
+                <div class="form-group">
+                    <label for="workspacePath">Đường dẫn đích (Absolute Path)</label>
+                    <div class="input-with-icon">
+                        <i class="fa-solid fa-terminal icon-input"></i>
+                        <input type="text" id="workspacePath" placeholder="D:/project/FindingHome ...">
+                    </div>
+                    <small class="helper-text">Mặc định: thư mục workspace cục bộ</small>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3><i class="fa-solid fa-users-gears icon-accent"></i> Cấu hình Agents</h3>
+                
+                <!-- Agent: CEO -->
+                <div class="agent-config-card glassmorphic-sub">
+                    <div class="agent-card-header">
+                        <label class="checkbox-container">
+                            <input type="checkbox" id="agentCeoActive" checked>
+                            <span class="checkmark"></span>
+                            <span class="agent-title">CEO / Product Manager</span>
+                        </label>
+                    </div>
+                    <div class="agent-card-body" id="ceoConfigBody">
+                        <label for="ceoModel">Model LLM</label>
+                        <select id="ceoModel">
+                            <option value="aws/claude-haiku-4-5" selected>aws/claude-haiku-4-5</option>
+                            <option value="gpt-4o">gpt-4o</option>
+                            <option value="gpt-4o-mini">gpt-4o-mini</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Agent: Architect -->
+                <div class="agent-config-card glassmorphic-sub">
+                    <div class="agent-card-header">
+                        <label class="checkbox-container">
+                            <input type="checkbox" id="agentArchActive" checked>
+                            <span class="checkmark"></span>
+                            <span class="agent-title">Architect (Kiến trúc sư)</span>
+                        </label>
+                    </div>
+                    <div class="agent-card-body" id="archConfigBody">
+                        <label for="archModel">Model LLM</label>
+                        <select id="archModel">
+                            <option value="aws/claude-haiku-4-5" selected>aws/claude-haiku-4-5</option>
+                            <option value="gpt-4o">gpt-4o</option>
+                            <option value="gpt-4o-mini">gpt-4o-mini</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Agent: Coder -->
+                <div class="agent-config-card glassmorphic-sub">
+                    <div class="agent-card-header">
+                        <label class="checkbox-container">
+                            <input type="checkbox" id="agentCoderActive" checked disabled>
+                            <span class="checkmark"></span>
+                            <span class="agent-title">Coder (Lập trình viên)</span>
+                        </label>
+                    </div>
+                    <div class="agent-card-body">
+                        <label for="coderModel">Model LLM</label>
+                        <select id="coderModel">
+                            <option value="gpt-4o" selected>gpt-4o</option>
+                            <option value="aws/claude-haiku-4-5">aws/claude-haiku-4-5</option>
+                            <option value="gpt-4o-mini">gpt-4o-mini</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Agent: QA -->
+                <div class="agent-config-card glassmorphic-sub">
+                    <div class="agent-card-header">
+                        <label class="checkbox-container">
+                            <input type="checkbox" id="agentQaActive" checked>
+                            <span class="checkmark"></span>
+                            <span class="agent-title">QA Engineer (Kiểm thử)</span>
+                        </label>
+                    </div>
+                    <div class="agent-card-body" id="qaConfigBody">
+                        <label for="qaModel">Model LLM</label>
+                        <select id="qaModel">
+                            <option value="gpt-4o" selected>gpt-4o</option>
+                            <option value="aws/claude-haiku-4-5">aws/claude-haiku-4-5</option>
+                            <option value="gpt-4o-mini">gpt-4o-mini</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Dashboard View -->
+        <main class="main-content">
+            <!-- Header section -->
+            <header class="main-header glassmorphic">
+                <div class="status-summary">
+                    <div class="status-item">
+                        <span class="status-label">Trạng thái:</span>
+                        <span class="status-value idle" id="globalStatus">Sẵn sàng</span>
+                    </div>
+                    <div class="status-item border-left">
+                        <span class="status-label">Số vòng lặp (Iteration):</span>
+                        <span class="status-value" id="iterationCount">0/5</span>
+                    </div>
+                </div>
+                <div class="system-time">
+                    <i class="fa-regular fa-clock"></i> <span id="clock">00:00:00</span>
+                </div>
+            </header>
+
+            <div class="dashboard-grid">
+                <!-- Prompt & Execution Block -->
+                <section class="prompt-section glassmorphic">
+                    <div class="section-title">
+                        <h2><i class="fa-solid fa-wand-magic-sparkles text-gradient"></i> Yêu cầu phát triển phần mềm</h2>
+                    </div>
+                    <div class="prompt-input-area">
+                        <textarea id="promptInput" placeholder="Mô tả chức năng bạn muốn lập trình tại đây... (Ví dụ: Hãy viết mã nguồn CLI thực hiện tính toán Fibonacci, hỗ trợ tham số đầu vào và viết kiểm thử pytest tương ứng)"></textarea>
+                        <div class="prompt-actions">
+                            <button id="btnRun" class="btn btn-primary">
+                                <i class="fa-solid fa-play"></i> Kích hoạt Workflow
+                            </button>
+                            <button id="btnStop" class="btn btn-secondary" disabled>
+                                <i class="fa-solid fa-stop"></i> Dừng chạy
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Real-time Graph Visualizer -->
+                <section class="visualizer-section glassmorphic">
+                    <div class="section-title">
+                        <h2><i class="fa-solid fa-chart-line text-gradient"></i> Tiến trình đồ thị LangGraph</h2>
+                    </div>
+                    <div class="graph-visualizer">
+                        <!-- Node START -->
+                        <div class="graph-node node-start" id="node-start">
+                            <div class="node-icon-wrapper"><i class="fa-solid fa-circle-play"></i></div>
+                            <span>BẮT ĐẦU</span>
+                        </div>
+
+                        <!-- Edge 1 -->
+                        <div class="graph-edge" id="edge-start-ceo"></div>
+
+                        <!-- Node CEO -->
+                        <div class="graph-node node-agent" id="node-ceo">
+                            <div class="node-icon-wrapper"><i class="fa-solid fa-user-tie"></i></div>
+                            <span>CEO Node</span>
+                            <div class="node-tag">Phân tích</div>
+                        </div>
+
+                        <!-- Edge 2 -->
+                        <div class="graph-edge" id="edge-ceo-arch"></div>
+
+                        <!-- Node Architect -->
+                        <div class="graph-node node-agent" id="node-architect">
+                            <div class="node-icon-wrapper"><i class="fa-solid fa-drafting-compass"></i></div>
+                            <span>Architect Node</span>
+                            <div class="node-tag">Kiến trúc</div>
+                        </div>
+
+                        <!-- Edge 3 -->
+                        <div class="graph-edge" id="edge-arch-coder"></div>
+
+                        <!-- Node Coder -->
+                        <div class="graph-node node-agent" id="node-coder">
+                            <div class="node-icon-wrapper"><i class="fa-solid fa-file-code"></i></div>
+                            <span>Coder Node</span>
+                            <div class="node-tag">Lập trình</div>
+                        </div>
+
+                        <!-- Edge 4 -->
+                        <div class="graph-edge" id="edge-coder-qa"></div>
+
+                        <!-- Node QA -->
+                        <div class="graph-node node-agent" id="node-qa">
+                            <div class="node-icon-wrapper"><i class="fa-solid fa-vial-circle-check"></i></div>
+                            <span>QA Node</span>
+                            <div class="node-tag">Kiểm thử</div>
+                        </div>
+
+                        <!-- Edge 5 (Conditional loop back to coder or END) -->
+                        <div class="graph-edge" id="edge-qa-end"></div>
+                        <div class="graph-edge edge-loop" id="edge-qa-coder" style="display:none;"></div>
+
+                        <!-- Node END -->
+                        <div class="graph-node node-end" id="node-end">
+                            <div class="node-icon-wrapper"><i class="fa-solid fa-flag-checkered"></i></div>
+                            <span>KẾT THÚC</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Detailed outputs Tab Section -->
+                <section class="outputs-section glassmorphic">
+                    <div class="tabs-header">
+                        <button class="tab-btn active" data-tab="tab-prd">
+                            <i class="fa-solid fa-file-contract"></i> CEO (PRD)
+                        </button>
+                        <button class="tab-btn" data-tab="tab-arch">
+                            <i class="fa-solid fa-compass-drafting"></i> Architect Design
+                        </button>
+                        <button class="tab-btn" data-tab="tab-files">
+                            <i class="fa-solid fa-folder-tree"></i> Workspace Files
+                        </button>
+                        <button class="tab-btn" data-tab="tab-qa">
+                            <i class="fa-solid fa-clipboard-check"></i> QA Test Results
+                        </button>
+                        <button class="tab-btn" data-tab="tab-console">
+                            <i class="fa-solid fa-terminal"></i> Console Logs
+                        </button>
+                    </div>
+
+                    <div class="tabs-content">
+                        <!-- TAB: PRD -->
+                        <div class="tab-pane active" id="tab-prd">
+                            <div class="content-placeholder" id="prdPlaceholder">
+                                <i class="fa-solid fa-file-invoice placeholder-icon"></i>
+                                <p>Tài liệu yêu cầu sản phẩm (PRD) sẽ hiển thị ở đây sau khi CEO Agent chạy xong.</p>
+                            </div>
+                            <pre class="formatted-output" id="prdOutput" style="display:none;"></pre>
+                        </div>
+
+                        <!-- TAB: ARCHITECT DESIGN -->
+                        <div class="tab-pane" id="tab-arch">
+                            <div class="content-placeholder" id="archPlaceholder">
+                                <i class="fa-solid fa-cubes placeholder-icon"></i>
+                                <p>Bản vẽ kiến trúc và mô tả cấu trúc file sẽ hiển thị ở đây.</p>
+                            </div>
+                            <pre class="formatted-output" id="archOutput" style="display:none;"></pre>
+                        </div>
+
+                        <!-- TAB: WORKSPACE FILES -->
+                        <div class="tab-pane" id="tab-files">
+                            <div class="files-layout">
+                                <div class="file-list-pane">
+                                    <h4><i class="fa-solid fa-folder"></i> Files trong Workspace</h4>
+                                    <ul class="file-list" id="workspaceFileList">
+                                        <li class="empty-list-msg">Chưa có file nào được tạo.</li>
+                                    </ul>
+                                </div>
+                                <div class="file-viewer-pane">
+                                    <div class="file-viewer-header" id="fileViewerHeader">Chọn một file để xem nội dung...</div>
+                                    <pre class="file-content" id="fileViewerContent"><code></code></pre>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB: QA TEST RESULTS -->
+                        <div class="tab-pane" id="tab-qa">
+                            <div class="content-placeholder" id="qaPlaceholder">
+                                <i class="fa-solid fa-circle-question placeholder-icon"></i>
+                                <p>Kết quả biên dịch, chạy các test case và trạng thái xác minh (Verification Status).</p>
+                            </div>
+                            <div id="qaOutputWrapper" style="display:none;">
+                                <div class="qa-status-card" id="qaStatusCard">
+                                    <i class="fa-solid fa-circle-info" id="qaStatusIcon"></i>
+                                    <span id="qaStatusText">Đang chạy thử nghiệm...</span>
+                                </div>
+                                <pre class="formatted-output" id="qaOutput"></pre>
+                            </div>
+                        </div>
+
+                        <!-- TAB: CONSOLE LOGS -->
+                        <div class="tab-pane" id="tab-console">
+                            <div class="console-wrapper">
+                                <div class="console-header">
+                                    <span>Live Logging System</span>
+                                    <button class="btn-clear-console" id="btnClearConsole"><i class="fa-solid fa-trash-can"></i> Xóa log</button>
+                                </div>
+                                <div class="console-body" id="consoleBody">
+                                    <div class="console-line system-msg">> Nhấn 'Kích hoạt Workflow' để khởi chạy...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notificationArea" class="notification-area"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+langchain-core
+langchain-openai
+langchain-tavily
+langchain-experimental
+langgraph
+langgraph-supervisor
+psycopg[binary,pool]
+langgraph-checkpoint-postgres
+python-dotenv
