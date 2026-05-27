@@ -7,3 +7,5 @@ langgraph-supervisor
 psycopg[binary,pool]
 langgraph-checkpoint-postgres
 python-dotenv
+fastapi
+uvicorn

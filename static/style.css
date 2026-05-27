@@ -236,7 +236,8 @@ body {
     margin-bottom: 4px;
 }
 
-.agent-card-body select {
+.agent-card-body select,
+.agent-card-body input.model-input {
     width: 100%;
     background-color: rgba(15, 23, 42, 0.7);
     border: 1px solid var(--border-color);
@@ -249,7 +250,8 @@ body {
     transition: border-color var(--transition-speed);
 }
 
-.agent-card-body select:focus {
+.agent-card-body select:focus,
+.agent-card-body input.model-input:focus {
     border-color: var(--primary);
 }
 

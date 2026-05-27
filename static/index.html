@@ -61,11 +61,7 @@
                     </div>
                     <div class="agent-card-body" id="ceoConfigBody">
                         <label for="ceoModel">Model LLM</label>
-                        <select id="ceoModel">
-                            <option value="aws/claude-haiku-4-5" selected>aws/claude-haiku-4-5</option>
-                            <option value="gpt-4o">gpt-4o</option>
-                            <option value="gpt-4o-mini">gpt-4o-mini</option>
-                        </select>
+                        <input type="text" id="ceoModel" list="modelList" class="model-input" value="aws/claude-haiku-4-5" autocomplete="off">
                     </div>
                 </div>
 
@@ -80,11 +76,7 @@
                     </div>
                     <div class="agent-card-body" id="archConfigBody">
                         <label for="archModel">Model LLM</label>
-                        <select id="archModel">
-                            <option value="aws/claude-haiku-4-5" selected>aws/claude-haiku-4-5</option>
-                            <option value="gpt-4o">gpt-4o</option>
-                            <option value="gpt-4o-mini">gpt-4o-mini</option>
-                        </select>
+                        <input type="text" id="archModel" list="modelList" class="model-input" value="aws/claude-haiku-4-5" autocomplete="off">
                     </div>
                 </div>
 
@@ -99,11 +91,7 @@
                     </div>
                     <div class="agent-card-body">
                         <label for="coderModel">Model LLM</label>
-                        <select id="coderModel">
-                            <option value="gpt-4o" selected>gpt-4o</option>
-                            <option value="aws/claude-haiku-4-5">aws/claude-haiku-4-5</option>
-                            <option value="gpt-4o-mini">gpt-4o-mini</option>
-                        </select>
+                        <input type="text" id="coderModel" list="modelList" class="model-input" value="gpt-4o" autocomplete="off">
                     </div>
                 </div>
 
@@ -118,11 +106,7 @@
                     </div>
                     <div class="agent-card-body" id="qaConfigBody">
                         <label for="qaModel">Model LLM</label>
-                        <select id="qaModel">
-                            <option value="gpt-4o" selected>gpt-4o</option>
-                            <option value="aws/claude-haiku-4-5">aws/claude-haiku-4-5</option>
-                            <option value="gpt-4o-mini">gpt-4o-mini</option>
-                        </select>
+                        <input type="text" id="qaModel" list="modelList" class="model-input" value="gpt-4o" autocomplete="off">
                     </div>
                 </div>
             </div>
@@ -320,6 +304,23 @@
 
     <!-- Notification Container -->
     <div id="notificationArea" class="notification-area"></div>
+
+    <!-- Model Datalist for Auto-suggestions -->
+    <datalist id="modelList">
+        <option value="aws/claude-opus-4-7"></option>
+        <option value="aws/claude-opus-4-6"></option>
+        <option value="aws/claude-opus-4-5"></option>
+        <option value="aws/claude-sonnet-4-6"></option>
+        <option value="aws/claude-sonnet-4-5"></option>
+        <option value="aws/claude-sonnet-4-0"></option>
+        <option value="aws/claude-haiku-4-5"></option>
+        <option value="aws/minimax-m2.5"></option>
+        <option value="aws/minimax-m2.1"></option>
+        <option value="aws/glm-5"></option>
+        <option value="aws/qwen3-codex"></option>
+        <option value="gpt-4o"></option>
+        <option value="gpt-4o-mini"></option>
+    </datalist>
 
     <script src="app.js"></script>
 </body>

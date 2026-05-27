@@ -204,35 +204,33 @@ document.addEventListener("DOMContentLoaded", () => {
         fileViewerHeader.textContent = `File: ${filePath} (Đang tải...)`;
         fileViewerContent.textContent = "Loading file content...";
         
-        const customWorkspace = workspacePath.value.trim() || null;
+        const customWorkspace = workspacePath.value.trim() || "";
         
         try {
-            // Tận dụng tool API read_workspace_file hoặc lấy trực tiếp
-            // Backend cho phép đọc file bằng cách mô phỏng công cụ read thông qua endpoint phụ hoặc trực tiếp
-            // Ở đây để đơn giản, ta gọi endpoint lấy nội dung file
-            const payload = {
-                relative_path: filePath,
-                config: {
-                    configurable: {
-                        workspace_path: customWorkspace
-                    }
-                }
-            };
+            let url = `/api/file?path=${encodeURIComponent(filePath)}`;
+            if (customWorkspace) {
+                url += `&workspace_path=${encodeURIComponent(customWorkspace)}`;
+            }
             
-            // Gửi yêu cầu qua tool read
-            // Để frontend có thể lấy trực tiếp nội dung file, backend FastAPI có thể cung cấp thêm endpoint đọc file.
-            // Hãy gọi API fetch /api/read-file hoặc fallback lấy từ cache nếu chưa viết API.
-            // Chúng ta sẽ viết API đọc file ở backend (hoặc lấy từ cache state trả về nếu state lưu nội dung file).
-            // Vì LangGraph state.code_files lưu nội dung {path: content}, ta có thể cache nó trực tiếp khi nhận event!
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            fileViewerHeader.textContent = `File: ${filePath}`;
+            fileViewerContent.textContent = data.content;
+            
+            // Cập nhật bộ nhớ đệm
+            savedFilesContent[filePath] = data.content;
+        } catch (e) {
+            // Fallback về cache nếu có
             if (savedFilesContent[filePath]) {
-                fileViewerHeader.textContent = `File: ${filePath}`;
+                fileViewerHeader.textContent = `File: ${filePath} (Lấy từ bộ nhớ đệm do lỗi tải)`;
                 fileViewerContent.textContent = savedFilesContent[filePath];
             } else {
-                fileViewerContent.textContent = "Nội dung file không có sẵn trong bộ nhớ đệm.";
+                fileViewerHeader.textContent = `Lỗi đọc file: ${filePath}`;
+                fileViewerContent.textContent = `Không thể tải nội dung file: ${e.message}`;
             }
-        } catch (e) {
-            fileViewerHeader.textContent = `Lỗi đọc file: ${filePath}`;
-            fileViewerContent.textContent = e.toString();
         }
     }
 
@@ -365,7 +363,7 @@ document.addEventListener("DOMContentLoaded", () => {
         workspacePath.disabled = isRunning;
         vertexKey.disabled = isRunning;
         
-        document.querySelectorAll("select, input[type=checkbox]").forEach(el => {
+        document.querySelectorAll(".model-input, select, input[type=checkbox]").forEach(el => {
             // Coder active is always disabled
             if (el.id !== "agentCoderActive") el.disabled = isRunning;
         });

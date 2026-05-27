@@ -29,15 +29,35 @@ def scan_workspace_files(workspace_dir: str = None) -> dict:
     if not os.path.exists(workspace_dir):
         return files_dict
     
+    # Danh sách các thư mục cần bỏ qua
+    ignored_dirs = {
+        ".pytest_cache", "__pycache__", ".git", "venv", ".venv", ".agent",
+        "node_modules", ".next", "dist", "build", ".idea", ".vscode"
+    }
+    
+    # Danh sách phần mở rộng của các file nhị phân/hình ảnh cần bỏ qua
+    ignored_extensions = {
+        ".png", ".jpg", ".jpeg", ".gif", ".ico", ".pdf", ".zip", ".gz", 
+        ".tar", ".db", ".sqlite", ".exe", ".dll", ".so", ".dylib", 
+        ".woff", ".woff2", ".ttf", ".eot", ".mp3", ".mp4", ".svg"
+    }
+    
     # Lấy toàn bộ file ngoại trừ các file tạm hoặc thư mục pycache
     for filepath in glob.glob(os.path.join(workspace_dir, "**", "*"), recursive=True):
         if os.path.isfile(filepath):
             # Lấy đường dẫn tương đối làm key
             rel_path = os.path.relpath(filepath, workspace_dir)
-            # Bỏ qua thư mục hệ thống/thư viện
-            if any(part in rel_path.split(os.sep) for part in [".pytest_cache", "__pycache__", ".git", "venv", ".venv", ".agent"]):
-
+            path_parts = rel_path.split(os.sep)
+            
+            # Bỏ qua nếu bất kỳ thư mục con nào nằm trong danh sách bỏ qua
+            if any(part in ignored_dirs for part in path_parts):
                 continue
+                
+            # Bỏ qua các tệp nhị phân dựa trên phần mở rộng
+            ext = os.path.splitext(filepath)[1].lower()
+            if ext in ignored_extensions:
+                continue
+                
             try:
                 with open(filepath, "r", encoding="utf-8") as f:
                     files_dict[rel_path] = f.read()
